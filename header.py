@@ -82,37 +82,30 @@ user_agent_array = [
 parser = argparse.ArgumentParser(description='Fuzz HTTP Headers for missing pieces. Enter the realm of justice.',
 					prog='header.py', usage='python3 header.py --url https://target_domain.com')
 
-parser.add_argument('-u', '--url', help='URL to fuzz for. Please enter as http(s)://target_domain.com', 
-					action='store', nargs='?', const="https://catakantest.com", type=str)
-parser.add_argument('-f', '--filename', help='File containing domains and subdomains', 
-					action='store')
-parser.add_argument('-r', '--randomize', 
-					help='Randomize User-Agent, sends multiple requests to same site with different User-Agents', 
-					action='store', nargs='?', const=0, type=bool)
+parser.add_argument('-u', '--url', help='URL to fuzz for. Please enter as http(s)://target_domain.com')
+parser.add_argument('-f', '--filename', help='File containing domains and subdomains')
 parser.add_argument('-m', '--method', help='Define HTTP Method. Currently supports GET, and POST. Default:GET', 
-					action='store', nargs='?', const="GET", type=str)
+					nargs='?', default="GET", type=str)
 parser.add_argument('-s', '--statuscode', help='Set HTTP status code to show for. Default:200 OK', 
-					action='store', nargs='?', const=200, type=int)
-parser.add_argument('-d', '--dradis', help='Export in Dradis format for tabling under, header.dradis', 
-					action='store')
+					nargs='?', default=200, type=int)
+parser.add_argument('-v', '--veriyfcert', help='Should SSL Certificate be verified? Default:True', 
+					nargs='?', default="True", type=str)
 # TODO
 # ADD COOKIE
 # ADD DRADIS PARSING
 # FIX STATUS CODE - SHOW ALL
 # FIX RANDOMIZER
 
-args = parser.parse_args()
-
 def print_entry():
 	print(bcolors.OKCYAN + """
-	  _                    _                       
-	 | |                  | |                      
-	 | |__   ___  __ _  __| | ___ _ __ _ __  _   _ 
-	 | '_ \ / _ \/ _` |/ _` |/ _ \ '__| '_ \| | | |
-	 | | | |  __/ (_| | (_| |  __/ |_ | |_) | |_| |
-	 |_| |_|\___|\__,_|\__,_|\___|_(_)| .__/ \__, |
-	                                  | |     __/ |
-	                                  |_|    |___/                                 
+	 _                    _                       
+	| |                  | |                      
+	| |__   ___  __ _  __| | ___ _ __ _ __  _   _ 
+	| '_ \ / _ \/ _` |/ _` |/ _ \ '__| '_ \| | | |
+	| | | |  __/ (_| | (_| |  __/ |_ | |_) | |_| |
+	|_| |_|\___|\__,_|\__,_|\___|_(_)| .__/ \__, |
+	                                 | |     __/ |
+	                                 |_|    |___/                                 
 	""" + bcolors.ENDC)
 
 	print(bcolors.OKCYAN + "A CLI HTTP(S) Header fuzzer, we fuzz so you don't need to. \n" + bcolors.ENDC)
@@ -126,108 +119,100 @@ def read_from(file): # lulz
 
 	return testsite_array
 
-def get_status_and_headers(target_url, show_status=200, method="GET", user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:107.0) Gecko/20100101 Firefox/107.0", target_randomize='0'):
+def get_status_and_headers(target_url, show_status, target_method, verify_choice):
 	return_array_positive = []
 	return_array_negative = []
 
-	user_agent = random.choice(user_agent_array)
+	for i in range(10):
+		user_agent = random.choice(user_agent_array)
 
-	our_headers = {
-	'User-Agent': user_agent
-	}
+		our_headers = {
+		'User-Agent': user_agent
+		}
+		
+		#response = requests.get(target_url, headers=our_headers, verify=verify_choice)
 
-	if target_randomize:
-		if method == "GET":	
-			response = requests.get(target_url, headers=our_headers)
-		elif method == "POST":
-			response = requests.post(target_url, headers=our_headers)
-	else:	
-		if method == "GET":	
-			response = requests.get(target_url)
-		elif method == "POST":
-			response = requests.post(target_url)
-	
-	url_status = response.status_code
-	if url_status != show_status:
-		print(bcolors.WARNING + "Invalid Status Code for: " + str(target_url) + " " + str(url_status) + bcolors.ENDC)
-	
-	# Check for our report template first.
-	# 0 = Cache Control
-	# 1 = Content Security Policy
-	# 2 = HSTS
-	# 3 = X-XSS-Protection
-	# 4 = X-Frame-Options
-	report_template = ['Cache-Control', 'Content-Security-Policy', 'Strict-Transport-Security',
-	 'X-XSS-Protection', 'X-Frame-Options', 'Secure', 'HttpOnly', 'SameSite']
+		if target_method == "GET":	
+			response = requests.get(target_url, headers=our_headers, verify=verify_choice)
+		elif target_method == "POST":
+			response = requests.post(target_url, headers=our_headers, verify=verify_choice)
+		
+		url_status = response.status_code
 
-	url_headers = response.headers
-	for report_header in report_template:
-		if str(report_header) in url_headers:
-			return_array_positive.append(report_header)
-		else:
-			return_array_negative.append(report_header) 
+		if url_status != show_status:
+			print(bcolors.WARNING + "Invalid Status Code for domain. Got: " + str(url_status) + "  Wanted:" + str(show_status) + bcolors.ENDC)
+		
+		# Check for our report template first.
+		# 0 = Cache Control
+		# 1 = Content Security Policy
+		# 2 = HSTS
+		# 3 = X-XSS-Protection
+		# 4 = X-Frame-Options
+		report_template = ['Cache-Control', 'Content-Security-Policy', 'Strict-Transport-Security',
+		 'X-XSS-Protection', 'X-Frame-Options', 'Secure', 'HttpOnly', 'SameSite']
 
-	#print(return_array_positive)
-	#print(return_array_negative)
-	
+		url_headers = response.headers
+		for report_header in report_template:
+			if str(report_header) in url_headers:
+				return_array_positive.append(report_header)
+			else:
+				return_array_negative.append(report_header) 
+
+		#print(return_array_positive)
+		#print(return_array_negative)
+
+		# Clear dups before returning
+		return_array_positive = list(dict.fromkeys(return_array_positive))
+		return_array_negative = list(dict.fromkeys(return_array_negative))
 	return return_array_positive, return_array_negative
 
 def print_results(url, selected_method, show_status, positives, negatives):	
 	print("""
-Target               Missing Headers               Method               Status Code
-------               ---------------               ------               -----------
+Target               Missing Headers
+------               ---------------
 			""")
 
 	for poz in positives:
-		print(bcolors.WARNING + str(url) + "               " + poz + "               " + str(selected_method)+ "               " + str(show_status) + bcolors.ENDC)
+		print(bcolors.WARNING + str(url) + " " + poz + " " + str(selected_method) + " " + str(show_status) + bcolors.ENDC)
 
-def main():
-	file_array = []
+def output_in_dradis():
+	print("TODO")
 
-	print_entry()
+args = parser.parse_args()
 
-	if args.method == None:
-		target_method = "GET"
-	else:
-		target_method = args.method
+file_array = []
+poz_array = []
+neg_array = []
 
-	if args.statuscode == None:
-		target_status_code = 200
-	else:
-		target_status_code = args.statuscode
+print_entry()
 
-	if args.filename == None:
-		target_filename = None
-	else:
-		target_filename = args.filename
-
-	target_randomize = args.randomize
-	
-	# MY HEAD HURTS.
-	try: 
-		file_array = read_from(target_filename)
-	except:
-		file_array = []
-	print(bcolors.OKCYAN + """
+print(bcolors.OKCYAN + """
 ############################################################
 ########################RESULTS#############################
 ############################################################
-		""" + bcolors.ENDC)
+""" + bcolors.ENDC)
 
-	if not file_array:		
-		if validators.url(str(args.url)):
-			target_url = args.url
-			print(bcolors.OKGREEN + "Starting Enumeration for: | URL: " + str(target_url) + " | Method: " +  str(target_method) + " | Listing Status Code: " + str(target_status_code) + " |" + bcolors.ENDC)
-			positive_list, negative_list = get_status_and_headers(target_url)
+target_method = args.method
 
-		else:
+target_status_code = args.statuscode
+
+if args.veriyfcert == "True": #  argparse does not support bools out of the box. So we do this.
+	target_verifycert = True
+else:
+	target_verifycert = False
+
+if args.filename == None:
+	if  args.url != "http://catakantest.net":
+		if not validators.url(str(args.url)):
 			print(bcolors.WARNING + "Invalid URL! Please enter a valid URL (HTTP/HTTPS) or leave me alone.\n" + bcolors.ENDC)
 			exit()
-	else:
-		for target_url in file_array:
-			positive_list, negative_list = get_status_and_headers(target_url)
-			print_results(target_url, target_method, target_status_code, positive_list, negative_list)
-
-
-
-main()
+		else:
+			target_url = args.url
+			poz_array, neg_array = get_status_and_headers(target_url, target_status_code, target_method, target_verifycert)
+			print_results(target_url, target_method, target_status_code, poz_array, neg_array)
+else:
+	target_filename = args.filename 
+	file_array = read_from(target_filename)
+	for host_name in file_array:
+		poz_array, neg_array = get_status_and_headers(host_name, target_status_code, target_method, target_verifycert)
+		print_results(host_name, target_method, target_status_code, poz_array, neg_array)
