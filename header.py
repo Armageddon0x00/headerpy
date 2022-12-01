@@ -172,8 +172,8 @@ Target               Missing Headers
 ------               ---------------
 			""")
 
-	for poz in positives:
-		print(bcolors.WARNING + str(url) + " " + poz + " " + str(selected_method) + " " + str(show_status) + bcolors.ENDC)
+	for neg in negatives:
+		print(bcolors.WARNING + str(url) + " " + neg + " " + str(selected_method) + " " + str(show_status) + bcolors.ENDC)
 
 def output_in_dradis():
 	print("TODO")
