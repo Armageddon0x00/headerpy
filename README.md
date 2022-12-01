@@ -127,3 +127,5 @@ https://yandex.com X-Frame-Options POST 200
 - Disable SSL warning when cert is not checked
 - Fix Dradis export function
 - Fix 10 requsts to be random user-agent and method each.
+- Fix report_template array to function within our scope
+- Add checking function for server/version headers.
